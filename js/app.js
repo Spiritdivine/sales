@@ -110,16 +110,48 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Helper to trigger Meta Pixel InitiateCheckout event
+  function trackInitiateCheckout(source) {
+    if (typeof window.fbq === 'function') {
+      window.fbq('track', 'InitiateCheckout', {
+        content_name: 'Fashion AI Strategy Masterclass',
+        content_category: 'Online Course',
+        value: 10000,
+        currency: 'NGN',
+        cta_source: source || 'direct_click'
+      });
+    }
+  }
+
+  // Attach InitiateCheckout tracking to all direct CTA links
+  const directCtaTriggers = [
+    { id: 'btn-header-enroll', source: 'header_nav' },
+    { id: 'btn-mobile-enroll', source: 'mobile_drawer' },
+    { id: 'btn-hero-enroll', source: 'hero_primary' },
+    { id: 'btn-pricing-enroll', source: 'pricing_card' }
+  ];
+
+  directCtaTriggers.forEach(({ id, source }) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('click', () => {
+        trackInitiateCheckout(source);
+      });
+    }
+  });
+
   // Handle enrollment checkout submission by redirecting to Nestuge checkout
   if (enrollForm) {
     enrollForm.addEventListener('submit', (e) => {
       e.preventDefault();
+      trackInitiateCheckout('modal_form');
       window.location.href = CHECKOUT_URL;
     });
   }
 
   if (btnSuccessClose) {
     btnSuccessClose.addEventListener('click', () => {
+      trackInitiateCheckout('modal_success_btn');
       window.location.href = CHECKOUT_URL;
     });
   }
@@ -247,6 +279,14 @@ document.addEventListener('DOMContentLoaded', () => {
         tab.classList.add('active');
         tab.setAttribute('aria-selected', 'true');
 
+        // Meta Pixel: Track interaction with video comparison case study
+        if (typeof window.fbq === 'function') {
+          window.fbq('trackCustom', 'Video_Interaction', {
+            action: 'switch_case_study',
+            case_study: targetId
+          });
+        }
+
         // Toggle panes
         methodPanes.forEach(pane => {
           if (pane.id === targetId) {
@@ -282,6 +322,14 @@ document.addEventListener('DOMContentLoaded', () => {
   audioButtons.forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+
+      // Meta Pixel: Track audio toggle interaction
+      if (typeof window.fbq === 'function') {
+        window.fbq('trackCustom', 'Video_Interaction', {
+          action: 'toggle_audio'
+        });
+      }
+
       const mediaBox = btn.closest('.method-media-box');
       if (!mediaBox) return;
       const video = mediaBox.querySelector('.method-visual-video');
@@ -328,4 +376,78 @@ document.addEventListener('DOMContentLoaded', () => {
 
     methodVideos.forEach(v => videoObserver.observe(v));
   }
+
+  // 8. Meta Pixel: ViewContent (When visitor reaches Offer & Pricing section)
+  const priceSection = document.getElementById('price') || document.getElementById('what-you-get');
+  if (priceSection && 'IntersectionObserver' in window) {
+    let viewContentFired = false;
+    const viewObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && !viewContentFired) {
+          viewContentFired = true;
+          if (typeof window.fbq === 'function') {
+            window.fbq('track', 'ViewContent', {
+              content_name: 'Fashion AI Strategy Masterclass Offer',
+              content_category: 'Course Pricing',
+              value: 10000,
+              currency: 'NGN'
+            });
+          }
+          viewObserver.disconnect();
+        }
+      });
+    }, { threshold: 0.25 });
+    viewObserver.observe(priceSection);
+  }
+
+  // 9. Meta Pixel: Scroll Depth Milestones (50% and 75%)
+  let scroll50Fired = false;
+  let scroll75Fired = false;
+  let scrollTicking = false;
+
+  function checkScrollDepth() {
+    const scrollTop = window.scrollY || document.documentElement.scrollTop;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    if (docHeight <= 0) return;
+
+    const scrollPercent = (scrollTop / docHeight) * 100;
+
+    if (!scroll50Fired && scrollPercent >= 50) {
+      scroll50Fired = true;
+      if (typeof window.fbq === 'function') {
+        window.fbq('trackCustom', 'ScrollDepth', { percent: 50 });
+      }
+    }
+
+    if (!scroll75Fired && scrollPercent >= 75) {
+      scroll75Fired = true;
+      if (typeof window.fbq === 'function') {
+        window.fbq('trackCustom', 'ScrollDepth', { percent: 75 });
+      }
+      window.removeEventListener('scroll', onScrollHandler);
+    }
+    scrollTicking = false;
+  }
+
+  function onScrollHandler() {
+    if (!scrollTicking) {
+      window.requestAnimationFrame(checkScrollDepth);
+      scrollTicking = true;
+    }
+  }
+
+  window.addEventListener('scroll', onScrollHandler, { passive: true });
+
+  // 10. Meta Pixel: Time on Page (30s and 60s Engagement Milestones)
+  setTimeout(() => {
+    if (typeof window.fbq === 'function') {
+      window.fbq('trackCustom', 'TimeOnPage', { seconds: 30 });
+    }
+  }, 30000);
+
+  setTimeout(() => {
+    if (typeof window.fbq === 'function') {
+      window.fbq('trackCustom', 'TimeOnPage', { seconds: 60 });
+    }
+  }, 60000);
 });
